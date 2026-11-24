@@ -79,6 +79,27 @@ function applyBox(el,i){
  return el
 }
 function image(url){const el=new Image();el.alt='';el.src=url;return el}
+const prefetchedImages=new Set()
+function prefetchNextPage(index){
+ const next=index===0?1:index>=5&&index<=12?5+(index-4)%8:null
+ if(next===null||navigator.connection?.saveData)return
+ const prefetch=()=>{
+  if(current!==index)return
+  for(const item of pages[next].items){
+   const url=assets[item.assetId]?.url
+   if(item.hidden||!url||!/\.(webp|png|jpe?g)$/i.test(url)||prefetchedImages.has(url))continue
+   prefetchedImages.add(url)
+   const hint=document.createElement('link')
+   hint.rel='prefetch'
+   hint.as='image'
+   hint.href=url
+   document.head.append(hint)
+  }
+ }
+ if(document.readyState!=='complete')window.addEventListener('load',prefetch,{once:true})
+ else if(window.requestIdleCallback)window.requestIdleCallback(prefetch)
+ else window.setTimeout(prefetch,350)
+}
 function control(el,label,handler){
  el.setAttribute('aria-label',label)
  el.addEventListener('click',handler)
@@ -532,5 +553,6 @@ function show(index,transition){
   }
  }
  if(index===27)page.focus({preventScroll:true})
+ prefetchNextPage(index)
 }
 show(0)
