@@ -1,0 +1,22 @@
+.second-egg{overflow:hidden;isolation:isolate;background:#e4a467;touch-action:none}
+.second-egg-rain{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:1;transition:opacity .45s}
+.second-egg-word{opacity:0;font-family:"LXGW WenKai",KaiTi,serif!important}
+.second-egg-reading .second-egg-word{animation:second-egg-writing 1.7s ease-out both}
+.second-egg-reading .second-egg-word+.second-egg-word{animation-delay:1.15s}
+@keyframes second-egg-writing{
+ from{opacity:0;clip-path:inset(0 0 100% 0)}
+ 25%{opacity:1}
+ to{opacity:1;clip-path:inset(0)}
+}
+.second-egg-clear .second-egg-rain{opacity:0}
+.second-egg-grab{position:absolute;inset:9% 17% 10%;border:0;background:none;touch-action:none;cursor:grab}
+.second-egg-wiping,.second-egg-wiping .second-egg-grab{cursor:grabbing}
+.second-egg-held{position:absolute;width:16%;transform:translate(-26%,-3%) rotate(-9deg);pointer-events:none}
+.second-egg-thanks{position:absolute;inset:0;display:block;border:0;background:none;padding:0;color:#632e25;font:700 3cqw "LXGW WenKai",KaiTi,serif;text-align:left}
+.second-egg-thanks span{position:absolute;left:19%;top:37%;padding:.25em 0}
+.second-egg-pat{position:absolute;inset:0;border:0;padding:0;background:none;cursor:pointer}
+.second-egg-pat img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.second-egg-exit{position:absolute;left:5%;bottom:3%}
+.egg-progress{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));z-index:40;display:grid;gap:3px;padding:6px 9px;border-radius:5px;background:#372a21dd;color:#fff1d8;font:14px/1.15 "LXGW WenKai",KaiTi,serif;pointer-events:none}
+.egg-progress progress{width:100%;height:4px;accent-color:#efa35d}
+@media(prefers-reduced-motion:reduce){.second-egg-rain{transition:none}.second-egg-reading .second-egg-word{animation:none;opacity:1}}

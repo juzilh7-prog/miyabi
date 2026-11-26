@@ -4,16 +4,64 @@ const stage=document.querySelector('#stage')
 const reduced=matchMedia('(prefers-reduced-motion: reduce)')
 const audio=new Audio()
 audio.loop=true
+const secondEggMusic=new Audio()
+secondEggMusic.loop=true
+secondEggMusic.volume=.55
+let resumeDeskMusic=false
 const collected=new Set()
+const exploreActions=new Set([
+ 'cover','pen','glasses','lamp','album-switch','album-save',
+ 'egg1-open','egg1-read','egg1-return','egg2-wipe','egg2-letter','egg2-pet','egg2-return'
+])
+for(const [index,page] of pages.entries()){
+ if(index>=1&&index<=17||index>=21&&index<=28)exploreActions.add('page-'+index)
+ if(page.items.some(item=>item.name==='桔瓣.png'&&!item.hidden))exploreActions.add('petal-'+index)
+ if(index>=14&&index<=17){
+  exploreActions.add('food-switch-'+index)
+ }
+ if(index>=22&&index<=26)exploreActions.add('video-'+index)
+}
+exploreActions.add('page-28')
+const explored=new Set()
+function recordInteraction(key){
+ if(!exploreActions.has(key)||explored.has(key))return
+ explored.add(key)
+ const label=document.getElementById('egg-progress-label')
+ const bar=document.getElementById('egg-progress-bar')
+ if(!label||!bar)return
+ const percent=Math.floor(explored.size*100/exploreActions.size)
+ label.textContent='目前已触发 '+percent+'%'
+ bar.value=percent
+}
 const desktop=[2,3,4,1]
 const wrap=(n,count)=>((n%count)+count)%count
 let current=0,season=3,book=0,sky=1,windowPhoto=null,track=0,lampOn=false,hasSwitched=false,hasPoured=false,unlocked=false,busy=false,fade=0
 let video=null
+let videoPausedDeskMusic=false
 let pitchContext,pitchModule,pitchConnection,localPitchVideo
+let localPitchSource
+function prepareLocalPitch(){
+ if(window.MiYaBiPitch?.localVideo)return Promise.resolve()
+ if(!localPitchSource){
+  localPitchSource=new Promise((resolve,reject)=>{
+   const script=document.createElement('script')
+   script.src='../../整站/video-pitch.js'
+   script.onload=()=>window.MiYaBiPitch?.localVideo?resolve():reject(new Error('缺少本地变声视频'))
+   script.onerror=()=>reject(new Error('无法读取本地变声视频'))
+   document.head.append(script)
+  }).catch(error=>{
+   localPitchSource=undefined
+   throw error
+  })
+ }
+ return localPitchSource
+}
 function pitchedSource(asset,semitones){
  if(!semitones||location.protocol!=='file:')return asset.url
+ const encoded=window.MiYaBiPitch?.localVideo
+ if(!encoded)return asset.url
  if(!localPitchVideo){
-  const bytes=Uint8Array.from(atob(window.MiYaBiPitch.localVideo),char=>char.charCodeAt(0))
+  const bytes=Uint8Array.from(atob(encoded),char=>char.charCodeAt(0))
   localPitchVideo=URL.createObjectURL(new Blob([bytes],{type:asset.mime}))
  }
  return localPitchVideo
@@ -44,6 +92,7 @@ function fallbackPitch(context,semitones){
 }
 async function connectPitch(node,semitones){
  if(!semitones||pitchConnection?.node===node)return
+ if(location.protocol==='file:'&&!window.MiYaBiPitch?.localVideo)return
  pitchContext??=new AudioContext()
  await pitchContext.resume()
  if(!node.isConnected||pitchConnection?.node===node)return
@@ -172,15 +221,36 @@ function media(i,asset=assets[i.assetId],asVideo=false){
    }finally{toggle.disabled=false}
   },'video-toggle')
   toggle.setAttribute('aria-label','播放视频')
+  if(semitones&&location.protocol==='file:'&&!window.MiYaBiPitch?.localVideo){
+   toggle.disabled=true
+   prepareLocalPitch().then(()=>{
+    if(node.isConnected)node.src=pitchedSource(asset,semitones)
+   }).catch(error=>{
+    console.warn('本地变声素材无法载入，使用原声音轨',error)
+   }).finally(()=>{toggle.disabled=false})
+  }
   for(const type of ['play','pause','ended'])node.addEventListener(type,()=>{
    const playing=!node.paused&&!node.ended
    toggle.textContent=playing?'Ⅱ':'▶'
    toggle.setAttribute('aria-label',playing?'暂停视频':'播放视频')
-   if(video===node)setBackground(!playing)
+   if(video!==node)return
+   if(playing){
+    if(type==='play')recordInteraction('video-'+current)
+    if(!audio.paused){
+     videoPausedDeskMusic=true
+     cancelAnimationFrame(fade)
+     audio.pause()
+    }
+   }else resumeMusicAfterVideo()
   })
   el.append(toggle);video=node
  }
  return el
+}
+function resumeMusicAfterVideo(){
+ if(!videoPausedDeskMusic)return
+ videoPausedDeskMusic=false
+ audio.play().catch(console.error)
 }
 function setBackground(on,duration=260){
  cancelAnimationFrame(fade)
@@ -213,6 +283,7 @@ function back(){
 function collect(at){
  if(unlocked||busy)return
  collected.add(at)
+ recordInteraction('petal-'+at)
  if(collected.size!==19)return
  unlocked=true
  const bits=[]
@@ -224,6 +295,7 @@ function collect(at){
  busy=true
  Promise.all(bits.map((bit,i)=>animate(bit,[{transform:'none',opacity:1},{transform:'translate('+((i%11)-4)*7+'cqw,'+(-6-i%8)+'cqw) rotate(260deg)',offset:.45},{transform:'translate('+((i%11)-4)*9+'cqw,44cqw) rotate(620deg)',opacity:0}],920+i%11*20))).then(()=>{
   bits.forEach(bit=>bit.remove());busy=false;show(27)
+  markSecondEggUnlocked()
  })
 }
 function baseLayer(i,index){
@@ -260,7 +332,10 @@ function makeLamp(i,page){
   page.querySelector('.paper')?.remove()
   await animate(chain,[{transform:'scaleY('+stretch+')'},{transform:'scaleY('+(tap?1.42:.97)+')',offset:.55},{transform:'scaleY(1)'}],tap?330:260)
   draw(1)
-  if(lampOn)hasSwitched=true
+  if(lampOn){
+   hasSwitched=true
+   recordInteraction('lamp')
+  }
   track=wrap(track+1,3);playTrack(track)
   lampOn=true;lamp.classList.add('lit');page.classList.add('reading')
   pull.querySelector('.pull-hint')?.remove()
@@ -284,6 +359,30 @@ function makeLamp(i,page){
  return lamp
 }
 function homeLayer(i,page){
+ if(i.name==='蓝笔.png'){
+  return artwork(i,event=>{
+   recordInteraction('pen')
+   animate(event.currentTarget,[
+   {transform:'translateY(0)'},
+   {transform:'translateY(-.25cqw)'},
+   {transform:'translateY(0)'}
+   ],240)
+  },'桌上的蓝笔')
+ }
+ if(i.name==='眼镜纸片.png'){
+  return artwork(i,event=>{
+   recordInteraction('glasses')
+   if(secondEggUnlocked()){
+    if(busy)return
+    show(28)
+    markSecondEggEntered()
+   }
+   else{
+    const angle=i.angle||0
+    animate(event.currentTarget,[{rotate:angle+'rad'},{rotate:(angle+.07)+'rad'},{rotate:angle+'rad'}],300)
+   }
+  },'桌上的眼镜和手帕')
+ }
  if(i.name==='台灯.png')return makeLamp(i,page)
  if(i.name==='饼干盘.png'){
   const plate=artwork(i)
@@ -343,7 +442,7 @@ function drawAlbum(page){
    button.style.zIndex=12;page.append(button);continue
   }
   if(i.name==='左下角下午茶.png'){
-   const tea=artwork(i,()=>{if(busy)return;windowPhoto=skies[sky];status.hidden=false;status.textContent='已设为窗外景色 · '+windowPhoto.date},'设为窗外景色')
+   const tea=artwork(i,()=>{if(busy)return;windowPhoto=skies[sky];status.hidden=false;status.textContent='已设为窗外景色 · '+windowPhoto.date;recordInteraction('album-save')},'设为窗外景色')
    tea.style.zIndex=12
    const label=element('span','tea-label');label.textContent='设为窗外景色';tea.append(label);page.append(tea);continue
   }
@@ -377,6 +476,7 @@ function drawAlbum(page){
    return animate(card,[{transform:start},{transform:end}],320)
   }))
   paint();busy=false
+  recordInteraction('album-switch')
  }
  paint()
 }
@@ -410,6 +510,7 @@ function drawFood(page,index){
    const leaving=shown.animate([{transform:'none'},{transform:'translateX('+(-step*100)+'%)'}],{duration:reduced.matches?0:300,fill:'forwards',easing:'ease-in-out'})
    await Promise.all([leaving.finished,animate(incoming,[{transform:'translateX('+(step*100)+'%)'},{transform:'none'}],300)])
    shown.remove();shown=incoming;foodIndex[category]=index;words(record)
+   recordInteraction('food-switch-'+(category+14))
   }catch(error){incoming.remove();console.error(error)}
   finally{busy=false}
  }
@@ -447,6 +548,25 @@ function drawTea(page){
  async function pour(cup){
   if(busy)return
   busy=true
+  const destination=22+cups.indexOf(cup)
+  try{
+   const pouring=playPour(cup)
+   let fallback
+   try{
+    await Promise.race([pouring,new Promise(resolve=>{fallback=setTimeout(resolve,1350)})])
+   }finally{
+    clearTimeout(fallback)
+   }
+  }catch(error){
+   console.warn('倒茶动画未完成',error)
+  }finally{
+   stream.hidden=true
+   hasPoured=true
+   busy=false
+  }
+  show(destination,'video')
+ }
+ async function playPour(cup){
   const rect=page.getBoundingClientRect(),m=mouth(cup),gap=Math.max(14,rect.height*.065)
   const ox=pot.offsetWidth*.48,oy=pot.offsetHeight*.55,sx=pot.offsetWidth*.084-ox,sy=pot.offsetHeight*.28-oy
   const rad=-28*Math.PI/180
@@ -455,11 +575,11 @@ function drawTea(page){
   const from=pot.style.transform||'none',to='translate('+dx+'px,'+dy+'px) rotate(-28deg)'
   pot.style.transform=to
   await animate(pot,[{transform:from},{transform:to}],220)
+  if(!page.isConnected)return
   Object.assign(stream.style,{left:m.x-rect.left+'px',top:m.y-rect.top-gap+'px',height:gap+'px'})
   stream.hidden=false
   const fill=cup.querySelector('.tea-fill');fill.style.transform='scale(1)'
   await Promise.all([animate(fill,[{transform:'scale(.05)'},{transform:'scale(1)'}],850),animate(stream,[{scale:'1 0'},{scale:'1 1'}],200)])
-  hasPoured=true;busy=false;show(22+cups.indexOf(cup),'video')
  }
  pot.onpointerdown=e=>{if(busy||e.button!==0)return;gesture={x:e.clientX,y:e.clientY};pot.setPointerCapture(e.pointerId)}
  pot.onpointermove=e=>{
@@ -472,60 +592,144 @@ function drawTea(page){
  pot.onpointercancel=()=>{if(!gesture)return;gesture=null;pot.style.transform=''}
  cups.forEach(cup=>cup.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pour(cup)}})
 }
-function drawEgg(page){
- const items=pages[27].items,bg=artwork(items[0]);bg.classList.add('egg-bg')
- const groups=['叮咚','这里其实没有','幸运值','虽然没有真正的奖励'].map(prefix=>items.find(i=>i.text?.startsWith(prefix)))
- const words=groups.map(i=>text(i))
- words.forEach(el=>el.hidden=true)
- const last=groups.at(-1)
- const button=action('回到起点',e=>{e.stopPropagation();goCover()},'action egg-back')
- Object.assign(button.style,{left:(last.x+last.w/2)/19.2+'%',top:(last.y+last.h+12)/10.8+'%'})
- button.hidden=true;page.append(bg,...words,button)
- page.tabIndex=0;page.setAttribute('aria-label','彩蛋，点击继续')
- let step=-1,locked=false
- async function next(){
-  if(locked||step===3)return
-  locked=true
-  if(step<0){
-   bg.firstChild.className='egg-bg soft'
-   if(!reduced.matches)await new Promise(resolve=>setTimeout(resolve,520))
-  }else{
-   await animate(words[step],[{opacity:1},{opacity:0}],210)
-   words[step].hidden=true
+function prepareEggCard(page,scene){
+ const intro=element('div','egg-intro')
+ intro.setAttribute('aria-hidden','true')
+ const card=element('div','egg-card')
+ const inside=scene.cloneNode(true)
+ const front=element('div','egg-card-front')
+ const title=element('span')
+ title.textContent='最后一瓣\n留给你'
+ const hint=element('span','egg-card-hint')
+ hint.textContent='点击打开'
+ front.append(title,hint)
+ const cover=element('div','egg-card-cover')
+ cover.append(front,element('div','egg-card-back'))
+ card.append(inside,cover)
+ intro.append(card)
+ page.append(intro)
+ return async ()=>{
+  try{
+   if(reduced.matches)return
+   hint.hidden=true
+   await cover.animate([{transform:'rotateX(0deg)'},{transform:'rotateX(148deg)'}],
+    {duration:1550,easing:'cubic-bezier(.35,0,.2,1)',fill:'forwards'}).finished
+   await card.animate([
+    {transform:'rotateX(15deg) rotateZ(-4deg) scale(1)'},
+    {transform:'rotateX(0deg) rotateZ(0deg) scale(1.724138)'}
+   ],{duration:1150,easing:'ease-in-out',fill:'forwards'}).finished
+  }finally{
+   intro.remove()
   }
-  step++;words[step].hidden=false
-  await animate(words[step],[{opacity:0},{opacity:1}],430)
-  if(step===3)button.hidden=false
-  locked=false
+ }
+}
+function drawEgg(page){
+ const items=window.MiYaBiFirstEggLayout
+ const scene=element('div','first-egg-scene')
+ for(const item of items.filter(item=>item.url&&!item.hidden)){
+  const layer=applyBox(element('div','layer'),item)
+  layer.append(image(item.url))
+  scene.append(layer)
+ }
+ const groups=['叮咚','回望','幸运值','虽然没有真正的奖励'].map(prefix=>items.find(item=>item.text?.trimStart().startsWith(prefix)))
+ const words=groups.map(item=>text(item))
+ words.forEach(word=>word.hidden=true)
+ const button=action('回到起点',event=>{event.stopPropagation();recordInteraction('egg1-return');goCover()},'action egg-back first-egg-return')
+ button.hidden=true
+ page.append(scene,...words,button)
+ page.tabIndex=0
+ page.setAttribute('aria-label','彩蛋，点击打开贺卡')
+ const openCard=prepareEggCard(page,scene)
+ let phase='closed'
+ async function reveal(word){
+  word.hidden=false
+  await animate(word,[{opacity:0},{opacity:1}],550)
+ }
+ async function next(){
+  if(phase==='closed'){
+   phase='opening'
+   await openCard()
+   await reveal(words[0])
+   await reveal(words[1])
+   recordInteraction('egg1-open')
+   phase='ready'
+   page.setAttribute('aria-label','彩蛋，点击继续')
+   return
+  }
+  if(phase!=='ready')return
+  phase='ending'
+  const openingWords=words.slice(0,2)
+  await Promise.all([
+   animate(scene,[{filter:'blur(0)'},{filter:'blur(10px)'}],520).then(()=>scene.classList.add('first-egg-soft')),
+   ...openingWords.map(async word=>{
+    await animate(word,[{opacity:1,filter:'blur(0)'},{opacity:0,filter:'blur(10px)'}],520)
+    word.hidden=true
+   })
+  ])
+  await reveal(words[2])
+  await reveal(words[3])
+  recordInteraction('egg1-read')
+  button.hidden=false
  }
  page.onclick=next
- page.onkeydown=e=>{if(e.target===page&&(e.key==='Enter'||e.key===' ')){e.preventDefault();next()}}
+ page.onkeydown=event=>{
+  if(event.target===page&&(event.key==='Enter'||event.key===' ')){
+   event.preventDefault()
+   next()
+  }
+ }
 }
 function goCover(){
  cancelAnimationFrame(fade);audio.pause();audio.currentTime=0
  season=3;track=0;lampOn=false;hasSwitched=false
  show(0)
 }
+function updateSecondEggMusic(previous,index,page){
+ if(previous===28&&index!==28){
+  secondEggMusic.pause()
+  secondEggMusic.currentTime=0
+  if(resumeDeskMusic)audio.play().catch(console.error)
+  resumeDeskMusic=false
+ }
+ if(index!==28||previous===28)return
+ resumeDeskMusic=!audio.paused
+ cancelAnimationFrame(fade)
+ audio.pause()
+ if(!secondEggMusic.src)secondEggMusic.src='media/second-egg/sheng-xia.mp3'
+ const start=()=>secondEggMusic.play().catch(error=>{
+  if(error.name!=='NotAllowedError')console.error('第二彩蛋音乐无法播放',error)
+ })
+ start()
+ const retry=()=>{
+  if(index===current&&secondEggMusic.paused)start()
+  page.removeEventListener('pointerdown',retry)
+  page.removeEventListener('keydown',retry)
+ }
+ page.addEventListener('pointerdown',retry)
+ page.addEventListener('keydown',retry)
+}
 function show(index,transition){
  if(busy)return
+ const previous=current
  const old=stage.querySelector('.page')
  if(video){
-  const hadSound=!video.paused
   video.pause();video=null
   if(pitchConnection){pitchConnection.source.disconnect();pitchConnection.processor.disconnect();pitchConnection=null}
-  if(hadSound)setBackground(true)
+  resumeMusicAfterVideo()
  }
  current=index
+ window.MiYaBiVisitTime.enter(index)
  const page=element('section','page')
  page.dataset.index=index
- page.setAttribute('aria-label',pages[index].name)
+ page.setAttribute('aria-label',index===28?'第二个彩蛋':pages[index].name)
  if(index===13)drawAlbum(page)
  else if(index>=14&&index<=17)drawFood(page,index)
  else if(index===21)drawTea(page)
  else if(index===27)drawEgg(page)
+ else if(index===28)drawSecondEgg(page)
  else for(const i of pages[index].items.filter(i=>!i.hidden)){
   if(index===0&&i.name==='MiYaBi标题.png'){
-   const title=artwork(i,()=>{if(busy)return;track=0;playTrack(0,true);show(1,'radial')},'MiYaBi，进入冬季桌面')
+   const title=artwork(i,()=>{if(busy)return;track=0;playTrack(0,true);show(1,'radial');recordInteraction('cover')},'MiYaBi，进入冬季桌面')
    page.append(title);animate(title,[{clipPath:'inset(0 100% 0 0)'},{clipPath:'inset(0 0 0 0)'}],1050)
   }else if(index>=1&&index<=4)page.append(homeLayer(i,page))
   else if(index>=5&&index<=12&&i.name==='小狐狸侧贴.png'){
@@ -553,6 +757,8 @@ function show(index,transition){
   }
  }
  if(index===27)page.focus({preventScroll:true})
+ recordInteraction('page-'+index)
+ updateSecondEggMusic(previous,index,page)
  prefetchNextPage(index)
 }
-show(0)
+show(document.body.hasAttribute('data-preview-first-egg')?27:document.body.hasAttribute('data-preview-second-egg')?28:0)
