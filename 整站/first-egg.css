@@ -8,4 +8,4 @@
 .egg-intro{cursor:pointer}
 .egg-card-hint{position:absolute;bottom:12%;font-size:1.45cqw;font-weight:400;color:#654e39}
 
-.egg-card-front{justify-content:flex-start;padding-left:52%;background:#f1e6ce url("media/first-egg/cover.png") center/cover no-repeat}.egg-card-front>span:first-child{white-space:pre;line-height:1.24}
+.egg-card-front{justify-content:flex-start;padding-left:52%;background:#f1e6ce url("media/first-egg/cover.webp") center/cover no-repeat}.egg-card-front>span:first-child{white-space:pre;line-height:1.24}

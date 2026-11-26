@@ -11,7 +11,7 @@ window.MiYaBiFirstEggLayout = [
     "angle": 0,
     "hidden": false,
     "locked": true,
-    "url": "media/first-egg/background.png"
+    "url": "media/first-egg/background.webp"
   },
   {
     "id": "03dbf79b-8b4b-4e63-84cc-9facd56cecb2",
@@ -24,7 +24,7 @@ window.MiYaBiFirstEggLayout = [
     "h": 906.4295600431195,
     "angle": 0,
     "locked": true,
-    "url": "media/first-egg/girl.png"
+    "url": "media/first-egg/girl.webp"
   },
   {
     "id": "a6fbfd8e-700f-4e7c-ac26-42d95d5f0275",
@@ -37,7 +37,7 @@ window.MiYaBiFirstEggLayout = [
     "h": 378.7344995476021,
     "angle": 0,
     "locked": true,
-    "url": "media/first-egg/orange.png"
+    "url": "media/first-egg/orange.webp"
   },
   {
     "id": "c16eac9d-a842-448c-aba6-b20577d6b5d2",
@@ -50,7 +50,7 @@ window.MiYaBiFirstEggLayout = [
     "h": 999.9073537025063,
     "angle": 0,
     "locked": true,
-    "url": "media/first-egg/paper.png"
+    "url": "media/first-egg/paper.webp"
   },
   {
     "id": "b4ceed8b-f3b8-4e3c-9382-fc4e3a1e83f9",

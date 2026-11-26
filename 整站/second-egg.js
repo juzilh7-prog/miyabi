@@ -25,9 +25,9 @@ function drawSecondEgg(page){
   return layer
  }
  page.classList.add('second-egg')
- const cloth=picture(clothBox,'cloth.png')
- const hanky=picture(hankyBox,'hanky.png')
- const crying=picture(cryBox,'cry.png')
+ const cloth=picture(clothBox,'cloth.webp')
+ const hanky=picture(hankyBox,'hanky.webp')
+ const crying=picture(cryBox,'cry.webp')
  const words=content.map(item=>{
   const layer=text(item)
   layer.classList.add('second-egg-word')
@@ -41,15 +41,15 @@ function drawSecondEgg(page){
  const mask=element('canvas')
  Object.assign(mask,{width:rain.width,height:rain.height})
  const coverage=mask.getContext('2d',{willReadFrequently:true})
- const rainImage=image(asset('rain.png'))
+ const rainImage=image(asset('rain.webp'))
  const grab=control(element('button','second-egg-grab'),'拿起手帕擦一擦',()=>{})
- const held=image(asset('held.png'))
+ const held=image(asset('held.webp'))
  held.className='second-egg-held'
  held.hidden=true
 
  const letter=applyBox(element('div','layer'),letterBox)
  const pat=control(element('button','second-egg-pat'),'摸摸桔子的头',pet)
- const letterImage=image(asset('letter.png'))
+ const letterImage=image(asset('letter.webp'))
  const patImage=image(asset('pat.gif'))
  patImage.hidden=true
  pat.append(letterImage,patImage)
