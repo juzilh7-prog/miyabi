@@ -28,7 +28,7 @@ function decoratePenPreview(){
  old.replaceWith(desk)
  const folded=action('打开折叠信纸',openLetter,'preview-folded-letter')
  folded.textContent=''
- folded.append(image('小信封-预览.png'))
+ folded.append(image('小信封-预览.webp'))
  folded.hidden=!hiddenLetterFound
  const original=source.cloneNode()
  original.className='preview-original'
@@ -99,6 +99,7 @@ function decoratePenPreview(){
      desk.classList.add('preview-separated')
      rest()
      recordInteraction('egg2-move-glasses')
+     prefetchImages(['cloth','hanky','cry','rain'].map(name=>'media/second-egg/'+name+'.webp'))
     },2000)
     dwell=timer
    }

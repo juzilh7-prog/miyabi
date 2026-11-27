@@ -18,10 +18,11 @@
  const copy=modal.querySelector('p')
  const queue=[]
  let next=0
+ const awardUrl=threshold=>'media/progress-awards/'+threshold+'-840.webp'
  function showNext(){
   if(modal.open||!queue.length)return
   const [threshold,name,description]=queue.shift()
-  artwork.src='media/progress-awards/'+threshold+'.webp'
+  artwork.src=awardUrl(threshold)
   heading.textContent=name
   copy.textContent=description
   modal.showModal()
@@ -29,6 +30,9 @@
  function check(){
   while(next<awards.length&&progress.value>=awards[next][0]){
    queue.push(awards[next++])
+  }
+  if(next<awards.length&&progress.value>=awards[next][0]-6){
+   prefetchImages([awardUrl(awards[next][0])])
   }
   showNext()
  }

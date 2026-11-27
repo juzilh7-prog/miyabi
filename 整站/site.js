@@ -129,21 +129,25 @@ function applyBox(el,i){
 }
 function image(url){const el=new Image();el.alt='';el.src=url;return el}
 const prefetchedImages=new Set()
+function prefetchImages(urls){
+ if(navigator.connection?.saveData)return
+ for(const url of urls){
+  if(!url||prefetchedImages.has(url))continue
+  prefetchedImages.add(url)
+  const hint=document.createElement('link')
+  hint.rel='prefetch'
+  hint.as='image'
+  hint.href=url
+  document.head.append(hint)
+ }
+}
 function prefetchNextPage(index){
  const next=index===0?1:index>=5&&index<=12?5+(index-4)%8:null
  if(next===null||navigator.connection?.saveData)return
  const prefetch=()=>{
   if(current!==index)return
-  for(const item of pages[next].items){
-   const url=assets[item.assetId]?.url
-   if(item.hidden||!url||!/\.(webp|png|jpe?g)$/i.test(url)||prefetchedImages.has(url))continue
-   prefetchedImages.add(url)
-   const hint=document.createElement('link')
-   hint.rel='prefetch'
-   hint.as='image'
-   hint.href=url
-   document.head.append(hint)
-  }
+  const urls=pages[next].items.filter(item=>!item.hidden).map(item=>assets[item.assetId]?.url)
+  prefetchImages(urls.filter(url=>/\.(webp|png|jpe?g)$/i.test(url||'')))
  }
  if(document.readyState!=='complete')window.addEventListener('load',prefetch,{once:true})
  else if(window.requestIdleCallback)window.requestIdleCallback(prefetch)
@@ -284,6 +288,9 @@ function collect(at){
  if(unlocked||busy)return
  collected.add(at)
  recordInteraction('petal-'+at)
+ if(collected.size===17){
+  prefetchImages(['media/first-egg/cover.webp',...window.MiYaBiFirstEggLayout.map(item=>item.url)])
+ }
  if(collected.size!==19)return
  unlocked=true
  const bits=[]
@@ -426,14 +433,20 @@ function drawAlbum(page){
  const center=frames.find(i=>i.w===Math.max(...frames.map(i=>i.w)))
  const ends=frames.filter(i=>i!==center).sort((a,b)=>a.x-b.x)
  const places=[ends[0],center,ends[1]]
- const cards=skies.map((photo,k)=>{
+ const cards=skies.map(()=>{
   const card=applyBox(element('div','album-card'),center)
-  const slot=slots[1],m=media(slot,photo)
-  Object.assign(m.style,{left:(slot.x-center.x)/center.w*100+'%',top:(slot.y-center.y)/center.h*100+'%',width:slot.w/center.w*100+'%',height:slot.h/center.h*100+'%'})
   const frame=artwork(center);frame.style.inset='0';frame.style.width='100%';frame.style.height='100%'
-  card.append(m,frame);card.hidden=true
+  card.append(frame);card.hidden=true
   return card
  })
+ const mountedPhotos=new Set()
+ function mountPhoto(index){
+  if(mountedPhotos.has(index))return
+  mountedPhotos.add(index)
+  const slot=slots[1],photo=media(slot,skies[index])
+  Object.assign(photo.style,{left:(slot.x-center.x)/center.w*100+'%',top:(slot.y-center.y)/center.h*100+'%',width:slot.w/center.w*100+'%',height:slot.h/center.h*100+'%'})
+  cards[index].prepend(photo)
+ }
  let date,status
  for(const i of albumItems){
   if(i.type==='mask'||i.name==='空相框.png'||i.name==='景色照片-冬.png')continue
@@ -462,6 +475,7 @@ function drawAlbum(page){
  const order=()=>[-1,0,1].map(k=>wrap(sky+k,skies.length))
  function paint(){
   const visible=order()
+  visible.forEach(mountPhoto)
   cards.forEach((card,k)=>{const at=visible.indexOf(k);card.hidden=at<0;if(at>=0){card.style.transform=transform(at);card.style.zIndex=at===1?11:10}})
   date.textContent=skies[sky].date
  }
@@ -469,6 +483,7 @@ function drawAlbum(page){
   if(busy)return
   busy=true
   const old=order();sky=wrap(sky+step,skies.length);const next=order()
+  next.forEach(mountPhoto)
   await Promise.all([...new Set([...old,...next])].map(k=>{
    const from=old.indexOf(k),to=next.indexOf(k),edge=step===1?2:0
    const card=cards[k],start=from<0?transform(edge,step):transform(from),end=to<0?transform(2-edge,-step):transform(to)
