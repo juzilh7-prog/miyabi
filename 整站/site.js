@@ -129,6 +129,23 @@ function applyBox(el,i){
 }
 function displayImageUrl(url){return window.MiYaBiCompactImages?.[url]??url}
 function image(url){const el=new Image();el.alt='';el.src=displayImageUrl(url);return el}
+function firstEggImage(url){
+ const el=new Image()
+ el.alt=''
+ el.style.visibility='hidden'
+ const fallback=url.replace(/\/(background|girl|orange|paper)\.webp$/,'/quick-$1.webp')
+ let retried=false
+ const retry=()=>{
+  if(retried||el.naturalWidth||fallback===url)return
+  retried=true
+  el.src=fallback
+ }
+ const deadline=setTimeout(retry,4000)
+ el.addEventListener('load',()=>{clearTimeout(deadline);el.style.visibility=''})
+ el.addEventListener('error',()=>{clearTimeout(deadline);retry()})
+ el.src=url
+ return el
+}
 const prefetchedImages=new Set()
 function prefetchImages(urls){
  if(navigator.connection?.saveData)return
@@ -151,9 +168,15 @@ function prefetchNextPage(index){
   const urls=pages[next].items.filter(item=>!item.hidden).map(item=>assets[item.assetId]?.url)
   prefetchImages(urls.filter(url=>/\.(webp|png|jpe?g)$/i.test(url||'')))
  }
- if(document.readyState!=='complete')window.addEventListener('load',prefetch,{once:true})
- else if(window.requestIdleCallback)window.requestIdleCallback(prefetch)
- else window.setTimeout(prefetch,350)
+ const queue=()=>{
+  if(window.requestIdleCallback)window.requestIdleCallback(prefetch)
+  else window.setTimeout(prefetch,350)
+ }
+ if(index===0){
+  const cover=stage.querySelector('.page[data-index="0"]')
+  Promise.allSettled([...cover.querySelectorAll('img')].map(img=>img.decode())).then(queue)
+ }else if(document.readyState!=='complete')window.addEventListener('load',queue,{once:true})
+ else queue()
 }
 function control(el,label,handler){
  el.setAttribute('aria-label',label)
@@ -273,9 +296,10 @@ function setBackground(on,duration=260){
 }
 function playTrack(index,intro=false){
  cancelAnimationFrame(fade)
- audio.src=music[index]
+ const source=index===2?'media/music-2-stream.mp3':music[index]
+ audio.src=source
  audio.volume=intro?.2:.55
- audio.play().then(()=>{if(intro&&audio.src.endsWith(music[index]))setBackground(true,650)}).catch(console.error)
+ audio.play().then(()=>{if(intro&&audio.src.endsWith(source))setBackground(true,650)}).catch(console.error)
 }
 function back(){
  if(current>=22&&current<=26){show(21);return}
@@ -339,13 +363,14 @@ function makeLamp(i,page){
   if(busy)return
   busy=true
   page.querySelector('.paper')?.remove()
+  track=wrap(track+1,3)
+  playTrack(track)
   await animate(chain,[{transform:'scaleY('+stretch+')'},{transform:'scaleY('+(tap?1.42:.97)+')',offset:.55},{transform:'scaleY(1)'}],tap?330:260)
   draw(1)
   if(lampOn){
    hasSwitched=true
    recordInteraction('lamp')
   }
-  track=wrap(track+1,3);playTrack(track)
   lampOn=true;lamp.classList.add('lit');page.classList.add('reading')
   pull.querySelector('.pull-hint')?.remove()
   if(!hasSwitched){
@@ -617,11 +642,10 @@ function drawTea(page){
  pot.onpointercancel=()=>{if(!gesture)return;gesture=null;pot.style.transform=''}
  cups.forEach(cup=>cup.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pour(cup)}})
 }
-function prepareEggCard(page,scene){
+function prepareEggCard(page,inside){
  const intro=element('div','egg-intro')
  intro.setAttribute('aria-hidden','true')
  const card=element('div','egg-card')
- const inside=scene.cloneNode(true)
  const front=element('div','egg-card-front')
  const title=element('span')
  title.textContent='最后一瓣\n留给你'
@@ -650,12 +674,16 @@ function prepareEggCard(page,scene){
 }
 function drawEgg(page){
  const items=window.MiYaBiFirstEggLayout
- const scene=element('div','first-egg-scene')
- for(const item of items.filter(item=>item.url&&!item.hidden)){
-  const layer=applyBox(element('div','layer'),item)
-  layer.append(image(item.url))
-  scene.append(layer)
+ function makeScene(){
+  const scene=element('div','first-egg-scene')
+  for(const item of items.filter(item=>item.url&&!item.hidden)){
+   const layer=applyBox(element('div','layer'),item)
+   layer.append(firstEggImage(item.url))
+   scene.append(layer)
+  }
+  return scene
  }
+ const scene=makeScene()
  const groups=['叮咚','回望','幸运值','虽然没有真正的奖励'].map(prefix=>items.find(item=>item.text?.trimStart().startsWith(prefix)))
  const words=groups.map(item=>text(item))
  words.forEach(word=>word.hidden=true)
@@ -664,7 +692,7 @@ function drawEgg(page){
  page.append(scene,...words,button)
  page.tabIndex=0
  page.setAttribute('aria-label','彩蛋，点击打开贺卡')
- const openCard=prepareEggCard(page,scene)
+ const openCard=prepareEggCard(page,makeScene())
  let phase='closed'
  async function reveal(word){
   word.hidden=false

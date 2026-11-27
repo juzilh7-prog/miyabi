@@ -23,7 +23,7 @@ function addHandPetalPreview(){
   w:girl.w*crop.w/1312,h:girl.h*crop.h/1199
  })
  button.setAttribute('aria-pressed',String(explored.has(handPetalKey)))
- const petal=image(girl.url)
+ const petal=firstEggImage(girl.url)
  Object.assign(petal.style,{
   width:1312/crop.w*100+'%',height:1199/crop.h*100+'%',
   left:-crop.x/crop.w*100+'%',top:-crop.y/crop.h*100+'%'
