@@ -1,0 +1,6 @@
+.hand-petal-preview{position:absolute;z-index:8;border:0;background:none;padding:0;cursor:pointer}
+.hand-petal-preview span{position:absolute;inset:0;display:block;clip-path:polygon(2% 26%,10% 13%,24% 14%,48% 25%,63% 16%,79% 3%,89% 2%,95% 12%,99% 32%,97% 51%,88% 75%,74% 91%,55% 97%,34% 93%,29% 77%,24% 65%,10% 64%,3% 50%);pointer-events:none}
+.hand-petal-preview img{position:absolute;display:block;max-width:none;opacity:0}
+.hand-petal-preview:hover img,.hand-petal-preview:focus-visible img{opacity:1;filter:brightness(1.12)}
+.hand-petal-preview[aria-pressed="true"] img{opacity:1;filter:brightness(1.23) saturate(1.15)}
+.hand-petal-preview[aria-pressed="true"]{filter:drop-shadow(0 0 .28cqw #fff19b) drop-shadow(0 0 .6cqw #ff9b36)}

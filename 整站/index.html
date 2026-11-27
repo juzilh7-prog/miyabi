@@ -8,11 +8,48 @@
 <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="second-egg.css">
 <link rel="stylesheet" href="first-egg.css?v=2">
+<link rel="stylesheet" href="first-egg-petal-preview.css">
+<style>
+.preview-hanky-set{position:absolute}
+.preview-hanky-set:hover :is(.preview-original,.preview-hanky,.preview-glasses){filter:brightness(1.25)}
+.preview-hanky,.preview-original,.preview-glasses,.preview-curl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.preview-hanky,.preview-glasses,.preview-curl{visibility:hidden}
+.preview-separated .preview-original{visibility:hidden}
+.preview-separated :is(.preview-hanky,.preview-glasses,.preview-curl){visibility:visible}
+.preview-hanky,.preview-curl{transition:clip-path .6s cubic-bezier(.19,.86,.37,1)}
+.preview-curl{clip-path:polygon(58% 89%,58% 89%,58% 89%);background:linear-gradient(135deg,#a47c50,#f3dbad 54%,#c6a479 78%,#835b35)}
+.preview-folding :is(.preview-curl,.preview-hanky){transition:none}
+.preview-glasses{transition:translate .55s ease}
+.preview-separated .preview-glasses{translate:0 -16%}
+.preview-draggable-pen{z-index:26;cursor:grab;touch-action:none;clip-path:polygon(12% 3%,24% 5%,83% 82%,85% 98%,70% 99%,15% 20%);transition:translate .42s cubic-bezier(.2,.85,.35,1),rotate .24s,filter .24s}
+.preview-draggable-pen:not(.preview-pen-held):hover{rotate:3deg;filter:brightness(1.25) drop-shadow(.2cqw .3cqw .25cqw #54352266)}
+.preview-pen-held{z-index:30;clip-path:none;cursor:grabbing;transition:none;filter:drop-shadow(.3cqw .43cqw .35cqw #56361c77)}
+.preview-pen-tip{position:absolute;left:14.8%;top:5.7%;width:0;height:0;pointer-events:none}
+.preview-folded-letter{position:absolute;z-index:2;left:54%;top:65%;width:23%;height:23%;border:0;background:none;padding:0;transform:rotate(7deg);cursor:pointer}
+.preview-folded-letter img{width:100%;height:100%;object-fit:fill;pointer-events:none}
+.preview-pen-held:focus,.page[tabindex="-1"]:focus{outline:none}
+.progress-award{position:fixed;inset:0;margin:auto;width:min(88vw,400px);max-height:90dvh;overflow:auto;padding:clamp(12px,3dvh,24px);border:1px solid #9b714a;border-radius:12px;background:#f5e7ca;color:#563725;text-align:center;box-shadow:0 14px 44px #29160780;font:400 16px/1.45 "LXGW WenKai",KaiTi,serif}
+.progress-award[open]{animation:award-arrive .25s ease-out both}
+.progress-award::backdrop{background:#281b155c}
+.progress-award img{display:block;width:100%;height:min(45dvh,250px);object-fit:contain}
+.progress-award h2{margin:.3em 0;font-size:1.55rem}
+.progress-award p{margin:.35em 0 1em}
+.progress-award button{border:0;border-radius:5px;padding:.4em 1.1em;background:#825430;color:#fff7e1;cursor:pointer}
+@keyframes award-arrive{from{opacity:0;scale:.9}to{opacity:1;scale:1}}
+@media(prefers-reduced-motion:reduce){.progress-award[open]{animation:none}}
+</style>
+<body data-full-pen-preview>
 <main id="stage" aria-label="MiYaBi"></main>
 <aside class="egg-progress" aria-label="整站互动进度">
   <span id="egg-progress-label" aria-live="polite">目前已触发 0%</span>
   <progress id="egg-progress-bar" value="0" max="100" aria-labelledby="egg-progress-label"></progress>
 </aside>
+<dialog id="progress-award" class="progress-award" aria-labelledby="progress-award-title" aria-describedby="progress-award-description">
+  <img alt="">
+  <h2 id="progress-award-title"></h2>
+  <p id="progress-award-description"></p>
+  <button type="button">继续探索</button>
+</dialog>
 <script defer src="layout.js?v=3"></script>
 <script defer src="video-pitch.js"></script>
 <script defer src="visit-time.js"></script>
@@ -20,4 +57,7 @@
 <script defer src="second-egg-layout.js"></script>
 <script defer src="second-egg.js?v=6"></script>
 <script defer src="site.js?v=15"></script>
+<script defer src="窗景花枝预览.js?v=15"></script>
+<script defer src="first-egg-petal-preview.js"></script>
+<script defer src="progress-awards.js?v=1"></script>
 </html>
