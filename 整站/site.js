@@ -127,11 +127,13 @@ function applyBox(el,i){
  Object.assign(el.style,{left:i.x/19.2+'%',top:i.y/10.8+'%',width:i.w/19.2+'%',height:i.h/10.8+'%',rotate:(i.angle||0)+'rad'})
  return el
 }
-function image(url){const el=new Image();el.alt='';el.src=url;return el}
+function displayImageUrl(url){return window.MiYaBiCompactImages?.[url]??url}
+function image(url){const el=new Image();el.alt='';el.src=displayImageUrl(url);return el}
 const prefetchedImages=new Set()
 function prefetchImages(urls){
  if(navigator.connection?.saveData)return
- for(const url of urls){
+ for(const source of urls){
+  const url=displayImageUrl(source)
   if(!url||prefetchedImages.has(url))continue
   prefetchedImages.add(url)
   const hint=document.createElement('link')
@@ -405,25 +407,33 @@ function homeLayer(i,page){
  const go={'相框.png':()=>show(13),'茶壶.png':()=>show(21),'笔记本.png':()=>{book=0;show(5)}}
  const el=artwork(i,go[i.name])
  if(i.name==='背景.png'&&current===1){el.style.left='0%';el.style.top='0%'}
- if(i.name==='窗外风景.png'&&windowPhoto){el.firstChild.src=windowPhoto.url;el.firstChild.className='window-photo'}
+ if(i.name==='窗外风景.png'&&windowPhoto){el.firstChild.src=displayImageUrl(windowPhoto.url);el.firstChild.className='window-photo'}
  if(go[i.name])shrinkHit(el)
  return el
 }
+const hitOutlines=new Map()
 function shrinkHit(el){
- // Keep the active area within the illustrated object, including overlapping transparent PNGs.
  const img=el.firstChild
- img?.decode().then(()=>{
-  const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*img.naturalHeight/img.naturalWidth))
-  const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,c.width,c.height)
-  const {data}=ctx.getImageData(0,0,c.width,c.height),left=[],right=[]
-  for(let y=0;y<c.height;y++){
-   let a=0,b=c.width-1
-   while(a<c.width&&data[(y*c.width+a)*4+3]<65)a++
-   while(b>=a&&data[(y*c.width+b)*4+3]<65)b--
-   if(a<=b){left.push(a/c.width*100+'% '+y/c.height*100+'%');right.push((b+1)/c.width*100+'% '+y/c.height*100+'%')}
-  }
-  if(left.length>2)el.style.clipPath='polygon('+left.concat(right.reverse()).join(',')+')'
- }).catch(()=>{})
+ if(!img)return
+ let outline=hitOutlines.get(img.src)
+ if(!outline){
+  outline=measureHitOutline(img).catch(()=>null)
+  hitOutlines.set(img.src,outline)
+ }
+ outline.then(clip=>{if(clip)el.style.clipPath=clip})
+}
+async function measureHitOutline(img){
+ await img.decode()
+ const c=document.createElement('canvas');c.width=128;c.height=Math.max(1,Math.round(128*img.naturalHeight/img.naturalWidth))
+ const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,c.width,c.height)
+ const {data}=ctx.getImageData(0,0,c.width,c.height),left=[],right=[]
+ for(let y=0;y<c.height;y++){
+  let a=0,b=c.width-1
+  while(a<c.width&&data[(y*c.width+a)*4+3]<65)a++
+  while(b>=a&&data[(y*c.width+b)*4+3]<65)b--
+  if(a<=b){left.push(a/c.width*100+'% '+y/c.height*100+'%');right.push((b+1)/c.width*100+'% '+y/c.height*100+'%')}
+ }
+ return left.length>2?'polygon('+left.concat(right.reverse()).join(',')+')':null
 }
 const albumItems=pages[13].items.filter(i=>!i.hidden)
 const slots=albumItems.filter(i=>i.type==='mask').sort((a,b)=>a.x-b.x)
@@ -752,23 +762,29 @@ function show(index,transition){
    shrinkHit(fox);page.append(fox)
   }else page.append(baseLayer(i,index))
  }
+ if(index>=5&&index<=12){
+  const spread=element('div','book-spread')
+  Object.assign(spread.style,{position:'absolute',inset:'0'})
+  spread.append(...[...page.children].slice(1))
+  page.append(spread)
+ }
  if(transition==='radial'&&old&&!reduced.matches){
   busy=true;page.classList.add('radial');stage.append(page)
   animate(page,[{'--spread':-24},{'--spread':100}],650).then(()=>{page.classList.remove('radial');old.remove();busy=false})
  }else{
   stage.replaceChildren(page)
   if(transition==='video')animate(page,[{opacity:0},{opacity:1}],300)
-  if(transition==='book'&&!reduced.matches){
+  if(transition==='book'&&old&&!reduced.matches){
    const desk=page.firstElementChild
-   const oldDesk=old?.firstElementChild
    desk.style.visibility='hidden'
-   for(const layer of old.children)if(layer!==oldDesk)layer.style.pointerEvents='none'
+   old.inert=true
    old.style.pointerEvents='none'
    stage.prepend(old)
-   // The existing desk stays visible while only the two spreads crossfade.
-   for(const layer of old.children)if(layer!==oldDesk)animate(layer,[{opacity:1},{opacity:0}],280)
    busy=true
-   Promise.all([...page.children].filter(el=>el!==desk).map(el=>animate(el,[{opacity:0},{opacity:1}],280))).then(()=>{desk.style.visibility='';old.remove();busy=false})
+   Promise.all([
+    animate(old.lastElementChild,[{opacity:1},{opacity:0}],280),
+    animate(page.lastElementChild,[{opacity:0},{opacity:1}],280)
+   ]).then(()=>{desk.style.visibility='';old.remove();busy=false})
   }
  }
  if(index===27)page.focus({preventScroll:true})
